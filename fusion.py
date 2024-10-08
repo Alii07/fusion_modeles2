@@ -436,23 +436,7 @@ def charger_dictionnaire(fichier):
         st.error(f"Erreur lors du chargement du dictionnaire : {e}")
     return dictionnaire
 
-def inspect_pkl_file(model_info):
-    model_path = model_info['model']
-    
-    try:
-        # Charger un modèle joblib
-        model = joblib.load(model_path)
-        
-        if isinstance(model, dict):
-            st.write(f"Le fichier {model_path} est un dictionnaire avec les clés suivantes : {list(model.keys())}")
-        else:
-            st.write(f"Le fichier {model_path} n'est pas un dictionnaire, c'est un objet de type {type(model)}")
-    
-    except Exception as e:
-        st.error(f"Erreur lors du chargement du modèle joblib : {str(e)}")
 
-# Exemple pour 7001.pkl
-inspect_pkl_file(models_info['7001'])
 
 if csv_upload:
     dictionnaire = charger_dictionnaire('./Dictionnaire.txt')
