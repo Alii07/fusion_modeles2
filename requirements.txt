@@ -1,0 +1,17 @@
+streamlit
+scikit-learn>=1.2.0
+pandas>=1.3.0
+joblib>=1.0.0
+numpy>=1.21.0
+tensorflow>=2.9.0
+keras
+pyngrok
+altair
+matplotlib
+kaleido
+pdfplumber
+opencv-python-headless  # Remplace cv2 par une version plus légère d'OpenCV adaptée aux environnements serveurs
+camelot-py[cv]  # Camelot avec OpenCV, mais la dépendance sera satisfaite par opencv-python-headless
+pypdf
+ghostscript
+
