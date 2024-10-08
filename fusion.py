@@ -33,14 +33,14 @@ models_info = {
         'target_col': 'anomalie_alsace_moselle'
     },
     '6082': {
-        'type' : 'joblib',
+        'type': 'joblib',
         'model': './6082.pkl',
         'numeric_cols': ['Rub 6082', '6082Taux'],
         'categorical_cols': ['Statut de salariés', 'Frontalier'],
         'target_col': 'anomalie_csg'
     },
     '6084': {
-        'type' : 'joblib',
+        'type': 'joblib',
         'model': './6084.pkl',
         'numeric_cols': ['Rub 6084', '6084Taux'],
         'categorical_cols': ['Statut de salariés', 'Frontalier'],
@@ -387,6 +387,71 @@ def process_model(df, model_name, info, anomalies_report, model_anomalies):
                 anomalies_report.setdefault(index, set()).add(model_name)
 
 
+def process_model_6082_6084(df, model_name, info, anomalies_report, model_anomalies):
+    
+    # Charger le modèle spécifique (Random Forest pour 6082 et 6084)
+    rf_classifier_loaded = joblib.load(info['model'])
+    
+    # Charger les encodeurs spécifiques
+    label_encoder_statut = joblib.load('label_encoder_statut.pkl')
+    label_encoder_frontalier = joblib.load('label_encoder_frontalier.pkl')
+    
+    # Nettoyer les noms de colonnes pour éviter les espaces accidentels
+    df.columns = df.columns.str.strip()
+    
+    # Sélectionner les mêmes colonnes que celles utilisées pour l'entraînement
+    try:
+        features_new = df[info['numeric_cols'] + info['categorical_cols']].copy()
+    except KeyError as e:
+        st.error(f"Erreur : Les colonnes suivantes sont manquantes : {e}")
+        return
+    
+    # Encodage des variables catégorielles
+    features_new['Statut de salariés'] = label_encoder_statut.transform(features_new['Statut de salariés'])
+    features_new['Frontalier'] = label_encoder_frontalier.transform(features_new['Frontalier'])
+    
+    # Réorganiser les colonnes en fonction de celles du modèle
+    try:
+        # Utiliser l'ordre des colonnes utilisées lors de l'entraînement du modèle
+        if hasattr(rf_classifier_loaded, 'feature_names_in_'):
+            training_columns = rf_classifier_loaded.feature_names_in_
+        else:
+            training_columns = info['numeric_cols'] + info['categorical_cols']
+        
+        # Identifier les colonnes manquantes dans les données test
+        missing_cols = set(training_columns) - set(features_new.columns)
+        
+        # Ajouter les colonnes manquantes avec des valeurs par défaut (ici, 0)
+        for c in missing_cols:
+            features_new[c] = 0
+        
+        # Réarranger les colonnes dans le même ordre que lors de l'entraînement
+        features_new = features_new.reindex(columns=training_columns)
+    
+    except AttributeError as e:
+        st.error(f"Erreur d'attribut avec le modèle {model_name}: {str(e)}")
+        return
+
+    # Faire des prédictions sur les nouvelles données
+    try:
+        predictions = rf_classifier_loaded.predict(features_new)
+    except ValueError as e:
+        st.error(f"Erreur avec le modèle {model_name} lors de la prédiction : {str(e)}")
+        return
+
+    # Ajouter les résultats de la prédiction au DataFrame
+    df[f'{model_name}_Anomalie_Pred'] = predictions
+
+    # Compter les anomalies détectées
+    num_anomalies = np.sum(predictions)
+    model_anomalies[model_name] = num_anomalies
+
+    # Ajouter les anomalies détectées dans le rapport
+    for index in df.index:
+        if predictions[index] == 1:
+            anomalies_report.setdefault(index, set()).add(model_name)
+
+
 
 
 
@@ -399,6 +464,8 @@ def detect_anomalies(df):
             process_model_with_average(df, model_name, info, anomalies_report, model_anomalies)
         elif model_name == '7001':
             process_7001(df, model_name, info, anomalies_report, model_anomalies)
+        elif model_name in ['6082', '6084']:  # Appel spécifique pour les modèles 6082 et 6084
+            process_model_6082_6084(df, model_name, info, anomalies_report, model_anomalies)
         else:
             process_model(df, model_name, info, anomalies_report, model_anomalies)
 
