@@ -99,13 +99,13 @@ models_info = {
         'categorical_cols': [],
         'target_col': 'anomalie_allocation_reduite'
     },
-    #'7035': {
-    #    'type' : 'joblib',
-    #    'model': './7035.pkl',
-    #    'numeric_cols': ['Rub 7035','7035Taux 2'],
-    #    'categorical_cols': ['Statut de salariés'],
-    #    'target_col': '7035 Fraud'
-    #},
+    '7035': {
+        'type' : 'joblib',
+        'model': './7035.pkl',
+        'numeric_cols': ['Rub 7035','7035Taux 2'],
+        'categorical_cols': ['Statut de salariés'],
+        'target_col': '7035 Fraud'
+    },
     '7040': {
         'type' : 'joblib',
         'model': './7040.pkl',
@@ -241,11 +241,14 @@ def process_7001(df, model_name, info, anomalies_report, model_anomalies):
         df['Anomaly_IF'] = np.nan  # Initialiser avec NaN
         df.loc[df_non_nan.index, 'Anomaly_IF'] = df_non_nan['Anomaly_IF']
 
+        # Compter les anomalies détectées
+        num_anomalies = np.sum(df_non_nan['Anomaly_IF'])
+        model_anomalies[model_name] = num_anomalies
+
         # Ajouter les anomalies dans le rapport
         for index in df_non_nan.index:
             if df_non_nan.loc[index, 'Anomaly_IF'] == 1:
                 anomalies_report.setdefault(index, set()).add(model_name)
-                model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
 
     except ValueError as e:
         st.error(f"Erreur lors de la transformation des données avec le scaler : {e}")
@@ -406,9 +409,17 @@ def process_model_6082_6084(df, model_name, info, anomalies_report, model_anomal
         st.error(f"Erreur : Les colonnes suivantes sont manquantes : {e}")
         return
     
+    # Remplacer les NaN par des valeurs par défaut avant d'appliquer l'encodage
+    features_new['Statut de salariés'] = features_new['Statut de salariés'].fillna('Unknown')
+    features_new['Frontalier'] = features_new['Frontalier'].fillna('Unknown')
+
     # Encodage des variables catégorielles
-    features_new['Statut de salariés'] = label_encoder_statut.transform(features_new['Statut de salariés'])
-    features_new['Frontalier'] = label_encoder_frontalier.transform(features_new['Frontalier'])
+    try:
+        features_new['Statut de salariés'] = label_encoder_statut.transform(features_new['Statut de salariés'])
+        features_new['Frontalier'] = label_encoder_frontalier.transform(features_new['Frontalier'])
+    except ValueError as e:
+        st.error(f"Erreur avec l'encodage : {e}")
+        return
     
     # Réorganiser les colonnes en fonction de celles du modèle
     try:
@@ -450,6 +461,7 @@ def process_model_6082_6084(df, model_name, info, anomalies_report, model_anomal
     for index in df.index:
         if predictions[index] == 1:
             anomalies_report.setdefault(index, set()).add(model_name)
+
 
 
 
