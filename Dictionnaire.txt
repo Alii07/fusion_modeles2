@@ -1,0 +1,152 @@
+1001 : Salaire de Base
+1002 : Appointement forfaitaire
+1004 : Salaire Apprentis
+1046 : Temps de pause forfaité
+1062 : Majoration Week-end
+1700 : Salaire Expatriés/Dét
+2010 : Prime rappel augmentation
+2012 : Prime d'ancienneté
+2016 : Prime d'équipe nuit 0624
+2018 : Prime d'équipe jour 0624
+2050 : Prime H. Nuit permanentes
+2068 : Prime présentéisme mens.
+2074 : rime d'astreinte
+2078 : Prime de productivité 0624
+2080 : Prime de responsabilité
+2082 : Prime PCQ
+2084 : Prime de poste
+2088 : rime de douche 0624
+2090 : Prime de disponibilité
+2091 : Prime de chaleur été 0624
+2112 : Prime Changement Equipe
+2144 : Prime compensation 2
+2262 : Prime exceptionnelle
+3002 : Hrs complémentaires100% 0624
+3004 : 3004 Hrs complémentaires 110% 0624
+3006 : 3006 Hrs supplémentaires 125% 0624
+3010 : 3010 Hrs supplémentaires 150% 0624
+3050 : Retenue Maladie 0624
+3060 : Paiement Maladie Tx plein 0624
+3080 : Retenue Accident travail 0624
+3090 : aiement ATT Tx plein 0624
+3100 : Retenue Mal. Prof. 0624
+3160 : Retenue Maternité 0624
+3170 : aiement Maternité 0624
+3200 : Indemn. journal. brutes 0624
+3230 : Garantie du net
+3250 : Ret. CP acquis 0624
+3255 : Ind. CP acquis 0624
+3265 : Ind. CP anticipés 0524
+3270 : 3270 Ret. Congés d'Ancienn. 0624
+3275 : Ind. Congés d'Ancienn. 0624
+3280 : Ret. CP reliquats 0624
+3285 : nd. CP reliquats 0624
+3310 : Ret. RTT (J) 0624
+3315 : Ind. RTT (J) 0624
+3340 : Ret. Repos Comp Légal 0624
+3345 : nd. Repos Comp Légal 0624
+3350 : 3350 Ret. Repos Comp Rempl HS 0624
+3355 : Ind. Repos Comp Rempl HS 0624
+3360 : Ret. Abs Autor Payée 0624
+3362 : nd. Abs Autor Payée 0624
+3404 : Ret. Crédit d'heures 0624
+3406 : Ind. Crédit d'heures 0624
+3416 : Ret. Abs décès 0624
+3418 : nd. Abs décès 0624
+3460 : 3460 Ret. Conge Formation 0624
+3462 : Ind. Conge Formation 0624
+3502 : 3502 Ret. Abs Conv Person 0624
+3505 : 3505 Ret. Abs N. Autor N. pa H 0624
+3506 : Ret. Abs Autor Non pay Jr 0624
+3552 : Complément prév soumis
+3618 : v. en nature-Voiture
+3704 : aiement CET imp&cot (H) 0624
+3B80 : articipation versée FS16 0624
+3B82 : articipation placée FS16 0624
+6070 : CSG Non Déd HS
+6074 : CRDS HS
+6080 : CSG Non Déd
+6081 : CSG Non Déd non ab. RA
+6082 : CSG Déductible
+6083 : CSG Déductible non ab. RA
+6084 : CRDS
+6085 : CRDS non ab. RA
+6092 : CSG NDéd non ab
+6094 : CSG Déd non ab
+6096 : CRDS non ab
+60F1 : Urssaf CSG NDéd IP Placée
+60F2 : Urssaf CSG Déd IP Versée
+60F3 : Urssaf CSG NDéd IP Placée
+60F4 : Urssaf CSG NDéd IP Versée
+60F8 : Urssaf CRDS IP Placée
+60F9 : Urssaf CRDS IP Versée
+6S89 : Exonération salariale
+7001 : Maladie réduite
+7002 : Maladie différentiel
+7003 : Maladie réduite <=SE
+7004 : Maladie réduite >SE
+7010 : Vieillesse
+7011 : Vieillesse <=SE
+7014 : Vieillesse >SE
+7015 : Vieillesse TA
+7018 : Vieillesse TA <=SE
+7019 : Vieillesse TA >SE
+7020 : FNAL
+7025 : All.Fam.tx.diff
+7030 : All.Fam. tx.réd
+7031 : All.Fam. tx.réd <=SE
+7032 : All.Fam. tx.réd >SE
+7035 : Solidarité
+7040 : Contrib. dial Social
+7045 : Transport
+7050 : Accid travail
+7055 : Forfait Soc 8%
+7135 : Solidarité <=SE
+7136 : Solidarité >SE
+7155 : Accid travail <=SE
+7156 : Accid travail >SE
+7C00 : P.Emploi TA
+7C10 : P.Emploi TB
+7C20 : P.Emploi AGS
+7C40 : P.Emploi TA <=SE
+7C41 : P.Emploi TA >SE
+7M03 : Mut isolée
+7M04 : Mut famille
+7M05 : Mut uniforme
+7P00 : Prév apprenti
+7P10 : Prév Non Cadre TA
+7P11 : rév Non Cadre TB
+7P20 : Prév Cadre TA
+7P25 : Prév Cadre TB
+7P26 : rév Cadre TC
+7R44 : APEC TA
+7R45 : APEC TB
+7R50 : Ret Agirc/Arrco T1 <
+7R53 : Ret Agirc/Arrco T1
+7R54 : Ret Agirc/Arrco T2
+7R56 : Ret Agirc/Arrco T1
+7R57 : Ret Agirc/Arrco T2
+7R60 : CEG T1 <
+7R63 : CEG T1
+7R64 : CEG T2
+7R70 : CET T1
+7R71 : CET T2
+7T00 : Taxe apprent. part princ.
+7T02 : Taxe apprent. solde
+7T05 : Taxe form prof
+7T10 : Eff constr
+7T15 : 7T15 Contrib.suppl. Apprentis.
+7T20 : Subv CE social
+7T26 : Contrib. Formation CDD
+8003 : v. en nature-Voiture
+8007 : Indemnité de déplacement
+8009 : Tickets Restaurant Sal 0624
+8010 : Tickets Restaurant Pat 0624
+8013 : Retenue RR cas sortie
+8017 : Indemn. Transport public
+8020 : compte
+8022 : compte par chèque
+8031 : Complément Prév non soum.
+8190 : 8190 Mt net HS/HC exo mensuel
+8192 : Mt net HS/HC exo annuel
+8683 : 8683 Reprise sal de base expat
