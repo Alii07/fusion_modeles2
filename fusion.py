@@ -409,16 +409,26 @@ def process_model_6082_6084(df, model_name, info, anomalies_report, model_anomal
         st.error(f"Erreur : Les colonnes suivantes sont manquantes : {e}")
         return
     
-    # Remplacer les NaN par des valeurs par défaut avant d'appliquer l'encodage
-    features_new['Statut de salariés'] = features_new['Statut de salariés'].fillna('Unknown')
-    features_new['Frontalier'] = features_new['Frontalier'].fillna('Unknown')
+    # Remplacer les NaN dans les colonnes catégorielles par une valeur par défaut (ici 'Unknown' pour éviter l'erreur d'encodage)
+    features_new[info['categorical_cols']] = features_new[info['categorical_cols']].fillna('Unknown')
 
-    # Encodage des variables catégorielles
+    # Gestion des valeurs non vues : remplacer les valeurs inconnues par 'Unknown' pour une catégorie arbitraire
+    def handle_unknown_labels(encoder, series):
+        # Remplacer 'Unknown' ou autres valeurs non vues par une nouvelle catégorie 'Unknown'
+        series = series.apply(lambda x: x if x in encoder.classes_ else 'Unknown')
+        
+        # Ajouter 'Unknown' comme nouvelle classe si elle n'est pas déjà présente
+        if 'Unknown' not in encoder.classes_:
+            encoder.classes_ = np.append(encoder.classes_, 'Unknown')
+        
+        return encoder.transform(series)
+
+    # Encodage des variables catégorielles avec gestion des catégories inconnues
     try:
-        features_new['Statut de salariés'] = label_encoder_statut.transform(features_new['Statut de salariés'])
-        features_new['Frontalier'] = label_encoder_frontalier.transform(features_new['Frontalier'])
+        features_new['Statut de salariés'] = handle_unknown_labels(label_encoder_statut, features_new['Statut de salariés'])
+        features_new['Frontalier'] = handle_unknown_labels(label_encoder_frontalier, features_new['Frontalier'])
     except ValueError as e:
-        st.error(f"Erreur avec l'encodage : {e}")
+        st.error(f"Erreur avec l'encodage des catégories pour {model_name}: {str(e)}")
         return
     
     # Réorganiser les colonnes en fonction de celles du modèle
@@ -461,8 +471,6 @@ def process_model_6082_6084(df, model_name, info, anomalies_report, model_anomal
     for index in df.index:
         if predictions[index] == 1:
             anomalies_report.setdefault(index, set()).add(model_name)
-
-
 
 
 
