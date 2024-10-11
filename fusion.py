@@ -53,13 +53,13 @@ models_info = {
             'categorical_cols': ['Statut de salariés'],
             'target_col': 'anomalie_maladie_reduite'
         },
-    '7002': {
-        'type' : 'joblib',
-        'model': './7002.pkl',
-        'numeric_cols': ['Rub 7002',  '7002Taux 2' , 'ASSIETTE CUM','PLAFOND CUM'],
-        'categorical_cols': ['Statut de salariés'],
-        'target_col': 'anomalie_maladie_diff'
-    },
+    #'7002': {
+    #    'type' : 'joblib',
+    #    'model': './7002.pkl',
+    #    'numeric_cols': ['Rub 7002',  '7002Taux 2' , 'ASSIETTE CUM','PLAFOND CUM'],
+    #    'categorical_cols': ['Statut de salariés'],
+    #    'target_col': 'anomalie_maladie_diff'
+    #},
 
     '7010': {
         'type' : 'joblib',
@@ -85,13 +85,13 @@ models_info = {
         'target_col': 'anomalie_fnal'
     },
 
-    '7025': {
-        'type' : 'joblib',
-        'model': './7025.pkl',
-        'numeric_cols': ['Rub 7025','7025Taux 2','ASSIETTE CUM','PLAFOND CUM'],
-        'categorical_cols': ['Statut de salariés'],
-        'target_col': 'anomalie_allocation_diff'
-    },
+    #'7025': {
+    #    'type' : 'joblib',
+    #    'model': './7025.pkl',
+    #    'numeric_cols': ['Rub 7025','7025Taux 2','ASSIETTE CUM','PLAFOND CUM'],
+    #    'categorical_cols': ['Statut de salariés'],
+    #    'target_col': 'anomalie_allocation_diff'
+    #},
     '7030': {
         'type' : 'joblib',
         'model': './7030.pkl',
@@ -313,6 +313,46 @@ def process_model_with_average(df, model_name, info, anomalies_report, model_ano
         if row['Anomalie'] == 'Oui':
             anomalies_report.setdefault(index, set()).add(model_name)
             model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
+
+
+def verify_montant_conditions(df, model_name, anomalies_report, model_anomalies):
+    """
+    Vérifie les montants patronaux et salariaux pour un modèle donné et ajoute des anomalies si nécessaire.
+    
+    Parameters:
+    df (pd.DataFrame): Le DataFrame contenant les données.
+    model_name (str): Le nom du modèle (par exemple, '7001', '7020', etc.).
+    anomalies_report (dict): Dictionnaire contenant les anomalies détectées.
+    model_anomalies (dict): Dictionnaire pour compter le nombre d'anomalies par modèle.
+    """
+    
+    montant_pat_col = f"{model_name}Montant Pat."
+    taux_2_col = f"{model_name}Taux 2"
+    montant_sal_col = f"{model_name}Montant Sal."
+    taux_col = f"{model_name}Taux"
+    rub_col = f"Rub {model_name}"
+
+    # Parcourir les lignes du DataFrame pour appliquer les vérifications
+    for index, row in df.iterrows():
+        
+        # Vérification pour Montant Pat.
+        if montant_pat_col in df.columns and taux_2_col in df.columns and rub_col in df.columns:
+            if not pd.isna(row[montant_pat_col]) and row[montant_pat_col] != 0:
+                montant_pat_calcule = row[taux_2_col] * row[rub_col] / 100
+                if not np.isclose(row[montant_pat_col], montant_pat_calcule, rtol=0.001):
+                    # Ajouter l'anomalie si le montant calculé ne correspond pas
+                    anomalies_report.setdefault(index, set()).add(model_name)
+                    model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
+
+        # Vérification pour Montant Sal.
+        if montant_sal_col in df.columns and taux_col in df.columns and rub_col in df.columns:
+            if not pd.isna(row[montant_sal_col]) and row[montant_sal_col] != 0:
+                montant_sal_calcule = row[taux_col] * row[rub_col] / 100
+                if not np.isclose(row[montant_sal_col], montant_sal_calcule, rtol=0.001):
+                    # Ajouter l'anomalie si le montant calculé ne correspond pas
+                    anomalies_report.setdefault(index, set()).add(model_name)
+                    model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
+
 
 
 def process_model(df, model_name, info, anomalies_report, model_anomalies):
