@@ -261,8 +261,8 @@ def process_model_with_average(df, model_name, info, anomalies_report, model_ano
     model_and_means = joblib.load(info['model'])
     
     # Extraire le modèle et les moyennes
-    model = model_and_means.get('model', None)  # Récupérer le modèle depuis le dictionnaire
-    average_predicted_taux_by_establishment = model_and_means.get('average_predicted_taux_by_establishment', None)  # Moyennes par établissement
+    model = model_and_means.get('model', None)
+    average_predicted_taux_by_establishment = model_and_means.get('average_predicted_taux_by_establishment', None)
 
     if model is None:
         st.error(f"Erreur : le modèle pour {model_name} n'a pas été trouvé dans le fichier.")
@@ -274,44 +274,35 @@ def process_model_with_average(df, model_name, info, anomalies_report, model_ano
 
     df_filtered = df.copy()
 
-    # Vérifier si la colonne 'Etablissement' est présente
     if 'Etablissement' not in df_filtered.columns:
         st.error(f"La colonne 'Etablissement' est manquante dans les nouvelles données pour {model_name}.")
         return
 
-    # Appliquer la règle : si Effectif < 11, définir 'Taux 2' à 0 (différence entre 7045Taux 2 et 7050Taux 2 est dans info['numeric_cols'])
-    taux_col = info['numeric_cols'][1]  # Le nom de la colonne du taux, qui change selon le modèle
+    taux_col = info['numeric_cols'][1]
     df_filtered['rule_based_taux'] = df_filtered.apply(lambda row: 0 if row['Effectif'] < 11 else row[taux_col], axis=1)
-
-    # Créer la colonne 'taux_per_effectif'
     df_filtered['taux_per_effectif'] = df_filtered[taux_col] / df_filtered['Effectif']
-
-    # Remplacer les valeurs manquantes par 0
     df_filtered = df_filtered.fillna(0)
-
-    # Préparer les colonnes nécessaires pour le modèle
     X_new = df_filtered[['Etablissement', 'Effectif', 'rule_based_taux', 'taux_per_effectif']]
 
-    # Effectuer les prédictions avec le pipeline
     try:
         df_filtered['predicted_taux'] = model.predict(X_new)
     except ValueError as e:
-        st.error(f"Erreur lors de la prédiction avec le modèle {model_name} : {str(e)}")
+        st.error(f"Erreur lors de la prédiction avec le modèle {model_name} : {e}")
         return
 
-    # Calculer la différence entre le taux réel et la moyenne prédite
     df_filtered['taux_diff'] = df_filtered.apply(
         lambda row: abs(row[taux_col] - average_predicted_taux_by_establishment.get(row['Etablissement'], 0)), axis=1
     )
 
-    # Définir une anomalie si la différence dépasse un seuil
     threshold = 0.001
     df_filtered['Anomalie'] = df_filtered['taux_diff'].apply(lambda x: 'Oui' if x > threshold else 'Non')
 
     # Enregistrer les anomalies détectées dans le rapport
     for index, row in df_filtered.iterrows():
         if row['Anomalie'] == 'Oui':
-            anomalies_report.setdefault(index, set()).add(model_name)
+            if index not in anomalies_report:
+                anomalies_report[index] = {}  # Utilisation d'un dictionnaire pour chaque ligne
+            anomalies_report[index][model_name] = f"Anomalie détectée pour {model_name} avec un taux de différence de {row['taux_diff']:.4f}"
             model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
 
 
@@ -330,30 +321,39 @@ def verify_montant_conditions(df, model_name, anomalies_report, model_anomalies)
     taux_2_col = f"{model_name}Taux 2"
     montant_sal_col = f"{model_name}Montant Sal."
     taux_col = f"{model_name}Taux"
-    rub_col = f"Rub {model_name}"
+    rub_col = f"{model_name}Base"
+
+    tolérance = 0.11  # La marge de différence tolérable exacte
 
     # Parcourir les lignes du DataFrame pour appliquer les vérifications
     for index, row in df.iterrows():
-        
+        # Initialiser les détails de l'anomalie pour cette ligne si ce n'est pas encore un dictionnaire
+        if index not in anomalies_report:
+            anomalies_report[index] = {}
+
         # Vérification pour Montant Pat.
         if montant_pat_col in df.columns and taux_2_col in df.columns and rub_col in df.columns:
             if not pd.isna(row[montant_pat_col]) and row[montant_pat_col] != 0:
-                montant_pat_calcule = row[taux_2_col] * row[rub_col] / 100
-                if not np.isclose(row[montant_pat_col], montant_pat_calcule, rtol=0.001):
+                montant_pat_calcule = round(row[taux_2_col] * row[rub_col] / 100, 2)
+                montant_pat_reel = round(row[montant_pat_col], 2)
+                
+                if not np.isclose(montant_pat_reel, montant_pat_calcule, atol=tolérance):
                     # Ajouter l'anomalie si le montant calculé ne correspond pas
-                    anomalies_report.setdefault(index, set()).add(model_name)
+                    anomalies_report[index][model_name] = "Anomalie dans le montant patronal"
                     model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
+                    st.write(f"Montant Pat. réel : {montant_pat_reel}\nMontant Pat. prédit : {montant_pat_calcule}")
 
         # Vérification pour Montant Sal.
         if montant_sal_col in df.columns and taux_col in df.columns and rub_col in df.columns:
             if not pd.isna(row[montant_sal_col]) and row[montant_sal_col] != 0:
-                montant_sal_calcule = row[taux_col] * row[rub_col] / 100
-                if not np.isclose(row[montant_sal_col], montant_sal_calcule, rtol=0.001):
+                montant_sal_calcule = round(row[taux_col] * row[rub_col] / 100 * -1, 2)
+                montant_sal_reel = round(row[montant_sal_col], 2)
+                
+                if not np.isclose(montant_sal_reel, montant_sal_calcule, atol=tolérance):
                     # Ajouter l'anomalie si le montant calculé ne correspond pas
-                    anomalies_report.setdefault(index, set()).add(model_name)
+                    anomalies_report[index][model_name] = "Anomalie dans le montant salarial"
                     model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
-
-
+                    st.write(f"Montant Sal. réel : {montant_sal_reel}\nMontant Sal. prédit : {montant_sal_calcule}")
 
 def process_model(df, model_name, info, anomalies_report, model_anomalies):
     df_filtered = df
@@ -510,7 +510,10 @@ def process_model_6082_6084(df, model_name, info, anomalies_report, model_anomal
     # Ajouter les anomalies détectées dans le rapport
     for index in df.index:
         if predictions[index] == 1:
-            anomalies_report.setdefault(index, set()).add(model_name)
+            if index not in anomalies_report:
+                anomalies_report[index] = {}  # Utilisation d'un dictionnaire pour chaque ligne
+            anomalies_report[index][model_name] = f"Anomalie détectée pour {model_name}"
+
 
 
 def process_model_6002(df, model_name, info, anomalies_report, model_anomalies):
@@ -570,42 +573,106 @@ def process_model_6002(df, model_name, info, anomalies_report, model_anomalies):
 
 
 
+def process_model_6082(df, model_name, info, anomalies_report, model_anomalies):
+    """
+    Processus spécifique pour le modèle 6082 avec gestion des encodages et colonnes manquantes.
+    """
+    # Charger le modèle
+    model = load_model(info)
+    
+    # Préparation des colonnes nécessaires
+    df_filtered = df.copy()
+
+    # Vérifier que les colonnes requises sont présentes
+    required_columns = info['numeric_cols'] + info['categorical_cols']
+    missing_columns = [col for col in required_columns if col not in df_filtered.columns]
+
+    if missing_columns:
+        st.error(f"Le modèle {model_name} manque des colonnes : {', '.join(missing_columns)}")
+        return
+
+    # Sélectionner les colonnes spécifiques au modèle
+    df_inputs = df_filtered[required_columns].copy()
+
+    # Encodage des variables catégorielles
+    df_inputs_encoded = pd.get_dummies(df_inputs, columns=info['categorical_cols'], drop_first=True)
+
+    # Vérifier que le nombre de colonnes encodées correspond aux colonnes utilisées pour l'entraînement
+    model_features = model.feature_names_in_
+    missing_cols = set(model_features) - set(df_inputs_encoded.columns)
+    
+    # Ajouter les colonnes manquantes avec des valeurs par défaut (0)
+    for col in missing_cols:
+        df_inputs_encoded[col] = 0
+    
+    # Réordonner les colonnes dans l'ordre attendu par le modèle
+    df_inputs_encoded = df_inputs_encoded.reindex(columns=model_features, fill_value=0)
+
+    try:
+        # Faire les prédictions
+        predictions = model.predict(df_inputs_encoded)
+        df_filtered[f'{model_name}_Anomalie_Pred'] = predictions
+        
+        # Compter les anomalies détectées
+        num_anomalies = np.sum(predictions)
+        model_anomalies[model_name] = num_anomalies
+        
+        # Enregistrer les anomalies détectées dans le rapport
+        for index in df_filtered.index:
+            if predictions[df_filtered.index.get_loc(index)] == 1:
+                if index not in anomalies_report:
+                    anomalies_report[index] = {}  # Utiliser un dictionnaire pour chaque ligne
+                anomalies_report[index][model_name] = "Anomalie détectée pour le modèle 6082"
+
+    except ValueError as e:
+        st.error(f"Erreur lors de la prédiction avec le modèle {model_name} : {e}")
+
+
 def detect_anomalies(df):
     anomalies_report = {}
     model_anomalies = {}
 
     for model_name, info in models_info.items():
-        if model_name == '6002':
-            process_model_6002(df, model_name, info, anomalies_report, model_anomalies)
-        elif model_name in ['7045', '7050']:
+        if model_name in ['7045', '7050']:
             process_model_with_average(df, model_name, info, anomalies_report, model_anomalies)
         elif model_name == '7001':
             process_7001(df, model_name, info, anomalies_report, model_anomalies)
-        elif model_name in ['6082', '6084']:  # Appel spécifique pour les modèles 6082 et 6084
+        elif model_name in ['6082', '6084']:  # Appel spécifique pour 6084
             process_model_6082_6084(df, model_name, info, anomalies_report, model_anomalies)
+        elif model_name == '6002':  # Appel spécifique pour 6084
+            process_model_6002(df, model_name, info, anomalies_report, model_anomalies)
         else:
             process_model(df, model_name, info, anomalies_report, model_anomalies)
 
+        # Appel de la nouvelle fonction de vérification des montants après chaque process_model
+        verify_montant_conditions(df, model_name, anomalies_report, model_anomalies)
+
     st.write("**Rapport d'anomalies détectées :**")
-    total_anomalies = len(anomalies_report)
-    st.write(f"**Total des lignes avec des anomalies :** {total_anomalies}")
 
     report_content = io.StringIO()
     report_content.write("Rapport d'anomalies détectées :\n\n")
-    report_content.write(f"Total des lignes avec des anomalies : {total_anomalies}\n")
+    
+    
     for model_name, count in model_anomalies.items():
         report_content.write(f"Un nombre de {int(count)} anomalies a été détecté pour la cotisation {model_name}.\n")
-
-    for line_index, models in anomalies_report.items():
+    
+    detailslist = []
+    # Boucle sur les lignes avec anomalies détectées uniquement
+    for line_index, anomaly_details in anomalies_report.items():
         matricule = df.loc[line_index, 'Matricule']
-        report_content.write(f"Matricule {matricule} : anomalie dans les cotisations {', '.join(sorted(models))}\n")
+        # Créer la chaîne de détails des anomalies
+        details = ', '.join([f"{model}: {desc}" for model, desc in anomaly_details.items()])
+        # Ajouter la ligne uniquement si des anomalies sont présentes pour le matricule
+        if details:  # Vérifie que des détails existent avant d'ajouter au rapport
+            detailslist.append(details)
+            report_content.write(f"Matricule {matricule} : anomalie dans les cotisations {model_name}\n")
+        
+    total_anomalies = len(detailslist)
+    st.write(f"**Total des lignes avec des anomalies :** {total_anomalies}")
+    report_content.write(f"Total des lignes avec des anomalies : {total_anomalies}\n")
 
     report_content.seek(0)
     return report_content
-
-
-
-
 
 
 def charger_dictionnaire(fichier):
