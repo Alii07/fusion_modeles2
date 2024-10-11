@@ -513,6 +513,61 @@ def process_model_6082_6084(df, model_name, info, anomalies_report, model_anomal
             anomalies_report.setdefault(index, set()).add(model_name)
 
 
+def process_model_6002(df, model_name, info, anomalies_report, model_anomalies):
+    """
+    Processus spécifique pour le modèle 6002 avec une gestion de l'encodage de 'Region'.
+    """
+
+    # Charger le modèle
+    model = load_model(info)
+    
+    # Préparation des colonnes nécessaires
+    df_filtered = df.copy()
+
+    # Vérifier que les colonnes requises sont présentes
+    required_columns = info['numeric_cols'] + info['categorical_cols']
+    missing_columns = [col for col in required_columns if col not in df_filtered.columns]
+
+    if missing_columns:
+        st.error(f"Le modèle {model_name} manque des colonnes : {', '.join(missing_columns)}")
+        return
+
+    # Sélectionner les colonnes spécifiques au modèle
+    df_inputs = df_filtered[required_columns].copy()
+
+    # Encodage des variables catégorielles
+    df_inputs_encoded = pd.get_dummies(df_inputs, columns=info['categorical_cols'], drop_first=True)
+
+    # Vérifier que le nombre de colonnes encodées correspond aux colonnes utilisées pour l'entraînement
+    model_features = model.feature_names_in_
+    missing_cols = set(model_features) - set(df_inputs_encoded.columns)
+    
+    # Ajouter les colonnes manquantes avec des valeurs par défaut (0)
+    for col in missing_cols:
+        df_inputs_encoded[col] = 0
+    
+    # Réordonner les colonnes dans l'ordre attendu par le modèle
+    df_inputs_encoded = df_inputs_encoded.reindex(columns=model_features, fill_value=0)
+
+    try:
+        # Faire les prédictions
+        predictions = model.predict(df_inputs_encoded)
+        df_filtered[f'{model_name}_Anomalie_Pred'] = predictions
+        
+        # Compter les anomalies détectées
+        num_anomalies = np.sum(predictions)
+        model_anomalies[model_name] = num_anomalies
+        
+        # Enregistrer les anomalies détectées dans le rapport
+        for index in df_filtered.index:
+            if predictions[df_filtered.index.get_loc(index)] == 1:
+                anomalies_report.setdefault(index, set()).add(model_name)
+
+    except ValueError as e:
+        st.error(f"Erreur lors de la prédiction avec le modèle {model_name} : {e}")
+
+
+
 
 
 def detect_anomalies(df):
@@ -520,7 +575,9 @@ def detect_anomalies(df):
     model_anomalies = {}
 
     for model_name, info in models_info.items():
-        if model_name in ['7045', '7050']:
+        if model_name == '6002':
+            process_model_6002(df, model_name, info, anomalies_report, model_anomalies)
+        elif model_name in ['7045', '7050']:
             process_model_with_average(df, model_name, info, anomalies_report, model_anomalies)
         elif model_name == '7001':
             process_7001(df, model_name, info, anomalies_report, model_anomalies)
@@ -545,6 +602,7 @@ def detect_anomalies(df):
 
     report_content.seek(0)
     return report_content
+
 
 
 
