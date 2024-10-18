@@ -749,7 +749,7 @@ def detect_anomalies(df):
     for line_index, anomaly_details in anomalies_report.items():
         matricule = df.loc[line_index, 'Matricule']
         # Créer la chaîne de détails des anomalies avec les modèles associés
-        details = ', '.join([f"{model}: {desc}" for model, desc in anomaly_details.items()])
+        details = ', '.join([f"{model} {desc}" for model, desc in anomaly_details.items()])
         # Ajouter la ligne uniquement si des anomalies sont présentes pour le matricule
         if details:  # Vérifie que des détails existent avant d'ajouter au rapport
             detailslist.append(details)
