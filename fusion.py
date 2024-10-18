@@ -53,13 +53,13 @@ models_info = {
             'categorical_cols': ['Statut de salariés'],
             'target_col': 'anomalie_maladie_reduite'
         },
-    #'7002': {
-    #    'type' : 'joblib',
-    #    'model': './7002.pkl',
-    #    'numeric_cols': ['Rub 7002',  '7002Taux 2' , 'ASSIETTE CUM','PLAFOND CUM'],
-    #    'categorical_cols': ['Statut de salariés'],
-    #    'target_col': 'anomalie_maladie_diff'
-    #},
+    '7002': {
+        'type' : 'joblib',
+        'model': './7002.pkl',  # Utilisez le chemin vers votre modèle
+        'numeric_cols': ['SMIC M CUM', '7002Taux 2', 'ASSIETTE CUM'],
+        'categorical_cols': ['Statut de salariés'],
+        'target_col': 'anomalie_maladie_diff'
+    },
 
     '7010': {
         'type' : 'joblib',
@@ -85,13 +85,13 @@ models_info = {
         'target_col': 'anomalie_fnal'
     },
 
-    #'7025': {
-    #    'type' : 'joblib',
-    #    'model': './7025.pkl',
-    #    'numeric_cols': ['Rub 7025','7025Taux 2','ASSIETTE CUM','PLAFOND CUM'],
-    #    'categorical_cols': ['Statut de salariés'],
-    #    'target_col': 'anomalie_allocation_diff'
-    #},
+    '7025': {
+            'type': 'joblib',
+            'model': './7025.pkl',
+            'numeric_cols': ['7025Taux 2', 'ASSIETTE CUM', 'PLAFOND CUM'],
+            'categorical_cols': ['Statut de salariés'],
+            'target_col': '7025Taux 2'
+        },
     '7030': {
         'type' : 'joblib',
         'model': './7030.pkl',
@@ -294,7 +294,7 @@ def process_model_with_average(df, model_name, info, anomalies_report, model_ano
         lambda row: abs(row[taux_col] - average_predicted_taux_by_establishment.get(row['Etablissement'], 0)), axis=1
     )
 
-    threshold = 0.001
+    threshold = 0.01
     df_filtered['Anomalie'] = df_filtered['taux_diff'].apply(lambda x: 'Oui' if x > threshold else 'Non')
 
     # Enregistrer les anomalies détectées dans le rapport
@@ -302,7 +302,7 @@ def process_model_with_average(df, model_name, info, anomalies_report, model_ano
         if row['Anomalie'] == 'Oui':
             if index not in anomalies_report:
                 anomalies_report[index] = {}  # Utilisation d'un dictionnaire pour chaque ligne
-            anomalies_report[index][model_name] = f"Anomalie détectée pour {model_name} avec un taux de différence de {row['taux_diff']:.4f}"
+            anomalies_report[index][model_name] = f"Anomalie détectée pour {model_name} avec une différence de taux."
             model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
 
 
@@ -331,29 +331,116 @@ def verify_montant_conditions(df, model_name, anomalies_report, model_anomalies)
         if index not in anomalies_report:
             anomalies_report[index] = {}
 
+        anomaly_detected = False  # Flag pour savoir si une anomalie a été détectée
+
         # Vérification pour Montant Pat.
         if montant_pat_col in df.columns and taux_2_col in df.columns and rub_col in df.columns:
             if not pd.isna(row[montant_pat_col]) and row[montant_pat_col] != 0:
                 montant_pat_calcule = round(row[taux_2_col] * row[rub_col] / 100, 2)
+                montant_pat_calcule2 = round(row[taux_2_col] * row[rub_col] / 100 * -1, 2)
                 montant_pat_reel = round(row[montant_pat_col], 2)
                 
-                if not np.isclose(montant_pat_reel, montant_pat_calcule, atol=tolérance):
+                if not np.isclose(montant_pat_reel, montant_pat_calcule, atol=tolérance) and not np.isclose(montant_pat_reel, montant_pat_calcule2, atol=tolérance):
                     # Ajouter l'anomalie si le montant calculé ne correspond pas
-                    anomalies_report[index][model_name] = "Anomalie dans le montant patronal"
-                    model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
-                    st.write(f"Montant Pat. réel : {montant_pat_reel}\nMontant Pat. prédit : {montant_pat_calcule}")
+                    anomalies_report[index][model_name] = f"Anomalie détectée ({model_name})"
+                    anomaly_detected = True  # Flag anomaly detected
 
         # Vérification pour Montant Sal.
         if montant_sal_col in df.columns and taux_col in df.columns and rub_col in df.columns:
             if not pd.isna(row[montant_sal_col]) and row[montant_sal_col] != 0:
                 montant_sal_calcule = round(row[taux_col] * row[rub_col] / 100 * -1, 2)
+                montant_sal_calcule2 = round(row[taux_col] * row[rub_col] / 100, 2)
                 montant_sal_reel = round(row[montant_sal_col], 2)
                 
-                if not np.isclose(montant_sal_reel, montant_sal_calcule, atol=tolérance):
+                if not np.isclose(montant_sal_reel, montant_sal_calcule, atol=tolérance) and not np.isclose(montant_sal_reel, montant_sal_calcule2, atol=tolérance):
                     # Ajouter l'anomalie si le montant calculé ne correspond pas
-                    anomalies_report[index][model_name] = "Anomalie dans le montant salarial"
-                    model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
-                    st.write(f"Montant Sal. réel : {montant_sal_reel}\nMontant Sal. prédit : {montant_sal_calcule}")
+                    anomalies_report[index][model_name] = f"Anomalie détectée ({model_name})"
+                    anomaly_detected = True  # Flag anomaly detected
+
+        # Si une anomalie est détectée pour le modèle, ne comptez qu'une seule anomalie pour ce modèle et cette ligne
+        if anomaly_detected:
+            model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
+
+
+
+def process_model_generic(df, model_name, info, anomalies_report, model_anomalies):
+
+    def predict_case(df_case, model_data, numeric_cols, taux_column):
+        # Vérifier si le DataFrame est vide
+        if df_case.empty:
+            print(f"Aucune donnée disponible pour le cas {model_data['case_name']}.")
+            return pd.DataFrame()  # Retourner un DataFrame vide
+
+        # S'assurer que la colonne 'taux_per_statut' est présente
+        if 'taux_per_statut' not in df_case.columns:
+            df_case['taux_per_statut'] = df_case[taux_column]  # Utiliser la colonne taux associée
+
+        # Assurez-vous que la colonne 'taux_per_statut' est incluse dans numeric_cols
+        if 'taux_per_statut' not in numeric_cols:
+            numeric_cols.append('taux_per_statut')
+
+        # S'assurer que les colonnes numériques sont présentes et non NaN dans les nouvelles données
+        df_case[numeric_cols] = df_case[numeric_cols].fillna(0)
+
+        # Définir les features (X) en fonction des colonnes numériques spécifiées
+        X_case = df_case[numeric_cols]
+
+        # Faire des prédictions sur les nouvelles données pour ce cas
+        df_case['predicted_taux'] = model_data['model'].predict(X_case)
+
+        # Calculer la différence entre le taux réel et la moyenne prédite
+        df_case['taux_diff'] = abs(df_case[taux_column] - model_data['average_predicted_taux'])
+
+        # Définir une anomalie si la différence dépasse un seuil
+        threshold = 0.01
+        df_case['Anomalie'] = df_case['taux_diff'].apply(lambda x: 'Oui' if x > threshold else 'Non')
+
+        return df_case[['Matricule'] + numeric_cols + ['Anomalie']]
+
+    # Charger le modèle et les moyennes depuis le fichier pkl
+    model_and_means = joblib.load(info['model'])
+
+    # Extraire les modèles et moyennes pour chaque cas (case_1_1, case_1_2, case_2)
+    if 'case_1_1' in model_and_means and 'case_1_2' in model_and_means and 'case_2' in model_and_means:
+        case_1_1_data = model_and_means['case_1_1']
+        case_1_2_data = model_and_means['case_1_2']
+        case_2_data = model_and_means['case_2']
+    else:
+        print(f"Erreur : les cases 'case_1_1', 'case_1_2', ou 'case_2' sont manquants dans {model_name}.")
+        return
+
+    # Calcul des nouvelles colonnes dans le DataFrame
+    if model_name == '7002':
+        df['PLAFOND CUM MALADIE'] = 2.5 * df['SMIC M CUM']
+        plafond_column = 'PLAFOND CUM MALADIE'
+        taux_column = '7002Taux 2'
+    elif model_name == '7025':
+        df['PLAFOND CUM ALLOC'] = 3.5 * df['SMIC M CUM']
+        plafond_column = 'PLAFOND CUM ALLOC'
+        taux_column = '7025Taux 2'
+    
+    # Gestion des cas spécifiques (1.1, 1.2, 2)
+    df_case_1_1 = df[(df['ASSIETTE CUM'] < df[plafond_column]) & (df['Statut de salariés'] == 'Stagiaire')]
+    df_case_1_2 = df[(df['ASSIETTE CUM'] < df[plafond_column]) & (df['Statut de salariés'] != 'Stagiaire')]
+    df_case_2 = df[df['ASSIETTE CUM'] > df[plafond_column]]
+
+    # Appliquer les prédictions sur chaque cas en passant les bonnes colonnes selon le modèle
+    result_case_1_1 = predict_case(df_case_1_1, case_1_1_data, info['numeric_cols'], taux_column)
+    result_case_1_2 = predict_case(df_case_1_2, case_1_2_data, info['numeric_cols'], taux_column)
+    result_case_2 = predict_case(df_case_2, case_2_data, info['numeric_cols'], taux_column)
+
+    # Fusionner les résultats des cas sans ignorer les index (conserver les index originaux)
+    final_results = pd.concat([result_case_1_1, result_case_1_2, result_case_2])
+
+    # Ajouter les résultats dans le rapport d'anomalies
+    for index, row in final_results.iterrows():
+        if row['Anomalie'] == 'Oui':
+            original_index = row.name  # Utiliser l'index d'origine du DataFrame
+            anomalies_report[original_index] = anomalies_report.get(original_index, {})
+            anomalies_report[original_index][model_name] = f"Anomalie détectée pour {model_name} avec un taux de différence"
+            model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
+
+
 
 def process_model(df, model_name, info, anomalies_report, model_anomalies):
     df_filtered = df
@@ -366,7 +453,6 @@ def process_model(df, model_name, info, anomalies_report, model_anomalies):
     missing_columns = [col for col in required_columns if col not in df_filtered.columns]
 
     if missing_columns:
-        st.error(f"Le modèle {model_name} manque des colonnes : {', '.join(missing_columns)}")
         return
 
     # Filtrer uniquement les colonnes nécessaires
@@ -382,6 +468,7 @@ def process_model(df, model_name, info, anomalies_report, model_anomalies):
     elif model_name == '6084':
         df_inputs['Rub 6084'] = df_inputs['Rub 6084'].fillna(0)
         df_inputs['6084Taux'] = df_inputs['6084Taux'].fillna(0)
+
 
     # Remplir les valeurs manquantes pour les autres colonnes numériques
     df_inputs[info['numeric_cols']] = df_inputs[info['numeric_cols']].fillna(df_inputs[info['numeric_cols']].mean())
@@ -627,7 +714,6 @@ def process_model_6082(df, model_name, info, anomalies_report, model_anomalies):
     except ValueError as e:
         st.error(f"Erreur lors de la prédiction avec le modèle {model_name} : {e}")
 
-
 def detect_anomalies(df):
     anomalies_report = {}
     model_anomalies = {}
@@ -639,8 +725,10 @@ def detect_anomalies(df):
             process_7001(df, model_name, info, anomalies_report, model_anomalies)
         elif model_name in ['6082', '6084']:  # Appel spécifique pour 6084
             process_model_6082_6084(df, model_name, info, anomalies_report, model_anomalies)
-        elif model_name == '6002':  # Appel spécifique pour 6084
+        elif model_name == '6002':  # Appel spécifique pour 6002
             process_model_6002(df, model_name, info, anomalies_report, model_anomalies)
+        elif model_name in ['7002', '7025']:
+            process_model_generic(df, model_name, info, anomalies_report, model_anomalies)
         else:
             process_model(df, model_name, info, anomalies_report, model_anomalies)
 
@@ -651,8 +739,8 @@ def detect_anomalies(df):
 
     report_content = io.StringIO()
     report_content.write("Rapport d'anomalies détectées :\n\n")
-    
-    
+
+    # Créer un rapport d'anomalies pour chaque modèle
     for model_name, count in model_anomalies.items():
         report_content.write(f"Un nombre de {int(count)} anomalies a été détecté pour la cotisation {model_name}.\n")
     
@@ -660,12 +748,12 @@ def detect_anomalies(df):
     # Boucle sur les lignes avec anomalies détectées uniquement
     for line_index, anomaly_details in anomalies_report.items():
         matricule = df.loc[line_index, 'Matricule']
-        # Créer la chaîne de détails des anomalies
+        # Créer la chaîne de détails des anomalies avec les modèles associés
         details = ', '.join([f"{model}: {desc}" for model, desc in anomaly_details.items()])
         # Ajouter la ligne uniquement si des anomalies sont présentes pour le matricule
         if details:  # Vérifie que des détails existent avant d'ajouter au rapport
             detailslist.append(details)
-            report_content.write(f"Matricule {matricule} : anomalie dans les cotisations {model_name}\n")
+            report_content.write(f"Matricule {matricule} : anomalie dans les cotisations {details}\n")
         
     total_anomalies = len(detailslist)
     st.write(f"**Total des lignes avec des anomalies :** {total_anomalies}")
@@ -673,6 +761,7 @@ def detect_anomalies(df):
 
     report_content.seek(0)
     return report_content
+
 
 
 def charger_dictionnaire(fichier):
