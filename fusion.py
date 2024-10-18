@@ -302,6 +302,7 @@ def process_model_with_average(df, model_name, info, anomalies_report, model_ano
         if row['Anomalie'] == 'Oui':
             if index not in anomalies_report:
                 anomalies_report[index] = {}  # Utilisation d'un dictionnaire pour chaque ligne
+            anomalies_report[index][model_name] = f""
             model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
 
 
@@ -436,6 +437,7 @@ def process_model_generic(df, model_name, info, anomalies_report, model_anomalie
         if row['Anomalie'] == 'Oui':
             original_index = row.name  # Utiliser l'index d'origine du DataFrame
             anomalies_report[original_index] = anomalies_report.get(original_index, {})
+            anomalies_report[original_index][model_name] = f""
             model_anomalies[model_name] = model_anomalies.get(model_name, 0) + 1
 
 
